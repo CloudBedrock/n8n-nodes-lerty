@@ -6,6 +6,10 @@ import {
   INodeTypeDescription,
   NodeOperationError,
   IHttpRequestOptions,
+  ILoadOptionsFunctions,
+  INodePropertyOptions,
+  INodeListSearchResult,
+  NodeConnectionType,
 } from 'n8n-workflow';
 
 import { LertyHttp, LertyAgent, LertyWebhookMessage } from '../../utils/LertyHttp';
@@ -23,8 +27,8 @@ export class Lerty implements INodeType {
     defaults: {
       name: 'Lerty',
     },
-    inputs: ['main'],
-    outputs: ['main'],
+    inputs: [NodeConnectionType.Main],
+    outputs: [NodeConnectionType.Main],
     credentials: [
       {
         name: 'lertyApi',
@@ -262,6 +266,7 @@ export class Lerty implements INodeType {
             name: 'metadata',
             type: 'fixedCollection',
             placeholder: 'Add Metadata',
+            default: {},
             typeOptions: {
               multipleValues: true,
             },
@@ -303,9 +308,9 @@ export class Lerty implements INodeType {
   methods = {
     listSearch: {
       searchAgents: async function (
-        this: IExecuteFunctions,
+        this: ILoadOptionsFunctions,
         filter?: string,
-      ): Promise<{ name: string; value: string }[]> {
+      ): Promise<INodeListSearchResult> {
         const credentials = await this.getCredentials('lertyApi');
         const lertyHttp = new LertyHttp({
           baseUrl: credentials.baseUrl as string,
@@ -314,7 +319,7 @@ export class Lerty implements INodeType {
 
         try {
           const agents = await lertyHttp.getAgents();
-          return agents
+          const results = agents
             .filter((agent: LertyAgent) => 
               !filter || agent.name.toLowerCase().includes(filter.toLowerCase())
             )
@@ -322,6 +327,10 @@ export class Lerty implements INodeType {
               name: `${agent.name} (${agent.id})`,
               value: agent.id,
             }));
+          
+          return {
+            results,
+          };
         } catch (error) {
           throw new NodeOperationError(this.getNode(), `Failed to load agents: ${error}`, {
             description: 'Make sure your API credentials are correct and the Lerty API is accessible',
@@ -349,16 +358,16 @@ export class Lerty implements INodeType {
 
         switch (operation) {
           case 'sendMessage':
-            responseData = await this.sendMessage(lertyHttp, i);
+            responseData = await sendMessage(this, lertyHttp, i);
             break;
           case 'getAgent':
-            responseData = await this.getAgent(lertyHttp, i);
+            responseData = await getAgent(this, lertyHttp, i);
             break;
           case 'listAgents':
-            responseData = await this.listAgents(lertyHttp, i);
+            responseData = await listAgents(this, lertyHttp, i);
             break;
           case 'uploadFile':
-            responseData = await this.uploadFile(lertyHttp, i);
+            responseData = await uploadFile(this, lertyHttp, i);
             break;
           default:
             throw new NodeOperationError(
@@ -372,7 +381,7 @@ export class Lerty implements INodeType {
           json: responseData,
           pairedItem: { item: i },
         });
-      } catch (error) {
+      } catch (error: any) {
         if (this.continueOnFail()) {
           results.push({
             json: {
@@ -389,13 +398,15 @@ export class Lerty implements INodeType {
     return [results];
   }
 
-  private async sendMessage(lertyHttp: LertyHttp, itemIndex: number): Promise<any> {
-    const agentId = this.getNodeParameter('agentId', itemIndex, '', { extractValue: true }) as string;
-    const message = this.getNodeParameter('message', itemIndex) as string;
-    const conversationId = this.getNodeParameter('conversationId', itemIndex, '') as string;
-    const userId = this.getNodeParameter('userId', itemIndex, '') as string;
-    const fileAttachment = this.getNodeParameter('fileAttachment', itemIndex, {}) as IDataObject;
-    const additionalFields = this.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+}
+
+async function sendMessage(executeFunctions: IExecuteFunctions, lertyHttp: LertyHttp, itemIndex: number): Promise<any> {
+    const agentId = executeFunctions.getNodeParameter('agentId', itemIndex, '', { extractValue: true }) as string;
+    const message = executeFunctions.getNodeParameter('message', itemIndex) as string;
+    const conversationId = executeFunctions.getNodeParameter('conversationId', itemIndex, '') as string;
+    const userId = executeFunctions.getNodeParameter('userId', itemIndex, '') as string;
+    const fileAttachment = executeFunctions.getNodeParameter('fileAttachment', itemIndex, {}) as IDataObject;
+    const additionalFields = executeFunctions.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
 
     const messageData: Partial<LertyWebhookMessage> = {
       content: message,
@@ -430,35 +441,35 @@ export class Lerty implements INodeType {
     return await lertyHttp.sendMessage(agentId, messageData);
   }
 
-  private async getAgent(lertyHttp: LertyHttp, itemIndex: number): Promise<any> {
-    const agentId = this.getNodeParameter('agentId', itemIndex, '', { extractValue: true }) as string;
+async function getAgent(executeFunctions: IExecuteFunctions, lertyHttp: LertyHttp, itemIndex: number): Promise<any> {
+    const agentId = executeFunctions.getNodeParameter('agentId', itemIndex, '', { extractValue: true }) as string;
     return await lertyHttp.getAgent(agentId);
   }
 
-  private async listAgents(lertyHttp: LertyHttp, itemIndex: number): Promise<any> {
+async function listAgents(executeFunctions: IExecuteFunctions, lertyHttp: LertyHttp, itemIndex: number): Promise<any> {
     const agents = await lertyHttp.getAgents();
     return { agents, count: agents.length };
   }
 
-  private async uploadFile(lertyHttp: LertyHttp, itemIndex: number): Promise<any> {
-    const agentId = this.getNodeParameter('agentId', itemIndex, '', { extractValue: true }) as string;
-    const fileSource = this.getNodeParameter('fileSource', itemIndex) as string;
+async function uploadFile(executeFunctions: IExecuteFunctions, lertyHttp: LertyHttp, itemIndex: number): Promise<any> {
+    const agentId = executeFunctions.getNodeParameter('agentId', itemIndex, '', { extractValue: true }) as string;
+    const fileSource = executeFunctions.getNodeParameter('fileSource', itemIndex) as string;
 
     let fileBuffer: Buffer;
     let fileName: string;
     let fileType: string;
 
     if (fileSource === 'url') {
-      const fileUrl = this.getNodeParameter('fileUrl', itemIndex) as string;
+      const fileUrl = executeFunctions.getNodeParameter('fileUrl', itemIndex) as string;
       const fileInfo = FileUtils.extractFileInfo(fileUrl);
       fileName = fileInfo.name;
       fileType = fileInfo.type;
       fileBuffer = await FileUtils.downloadFileFromUrl(fileUrl);
     } else {
-      const binaryPropertyName = this.getNodeParameter('binaryProperty', itemIndex) as string;
-      const binaryData = this.helpers.assertBinaryData(itemIndex, binaryPropertyName);
+      const binaryPropertyName = executeFunctions.getNodeParameter('binaryProperty', itemIndex) as string;
+      const binaryData = executeFunctions.helpers.assertBinaryData(itemIndex, binaryPropertyName);
       
-      fileBuffer = await this.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
+      fileBuffer = await executeFunctions.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
       fileName = binaryData.fileName || 'file';
       fileType = binaryData.mimeType || 'application/octet-stream';
     }
@@ -466,7 +477,7 @@ export class Lerty implements INodeType {
     // Validate file
     if (!FileUtils.validateFileType(fileType)) {
       throw new NodeOperationError(
-        this.getNode(),
+        executeFunctions.getNode(),
         `Unsupported file type: ${fileType}`,
         { itemIndex }
       );
@@ -474,7 +485,7 @@ export class Lerty implements INodeType {
 
     if (!FileUtils.validateFileSize(fileBuffer.length)) {
       throw new NodeOperationError(
-        this.getNode(),
+        executeFunctions.getNode(),
         `File size too large: ${FileUtils.formatFileSize(fileBuffer.length)}`,
         { itemIndex }
       );
@@ -482,4 +493,3 @@ export class Lerty implements INodeType {
 
     return await lertyHttp.uploadFile(agentId, fileBuffer, fileName, fileType);
   }
-}

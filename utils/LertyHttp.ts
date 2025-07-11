@@ -57,27 +57,23 @@ export class LertyHttp {
   ): Promise<T> {
     const url = `${this.config.baseUrl}${endpoint}`;
     
-    const requestOptions: IHttpRequestOptions = {
-      method,
-      url,
-      headers: {
-        'Authorization': `Bearer ${this.config.apiToken}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      timeout: this.config.timeout,
-      ...options,
+    const requestHeaders: Record<string, string> = {
+      'Authorization': `Bearer ${this.config.apiToken}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
     };
 
-    if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-      requestOptions.body = data;
+    if (options?.headers) {
+      Object.keys(options.headers).forEach(key => {
+        requestHeaders[key] = String(options.headers![key]);
+      });
     }
 
     try {
       const response = await fetch(url, {
-        method: requestOptions.method,
-        headers: requestOptions.headers,
-        body: requestOptions.body ? JSON.stringify(requestOptions.body) : undefined,
+        method,
+        headers: requestHeaders,
+        body: data ? JSON.stringify(data) : undefined,
       });
 
       if (!response.ok) {

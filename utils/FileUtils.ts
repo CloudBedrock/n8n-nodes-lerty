@@ -76,8 +76,15 @@ export class FileUtils {
 
   static async downloadFileFromUrl(url: string, headers?: IDataObject): Promise<Buffer> {
     try {
+      const requestHeaders: Record<string, string> = {};
+      if (headers) {
+        Object.keys(headers).forEach(key => {
+          requestHeaders[key] = String(headers[key]);
+        });
+      }
+
       const response = await fetch(url, {
-        headers: headers as HeadersInit,
+        headers: requestHeaders,
       });
 
       if (!response.ok) {

@@ -68,7 +68,7 @@ export class LertyWebSocket {
         resolve();
       });
 
-      this.socket!.onError((error) => {
+      this.socket!.onError((error: any) => {
         this.isConnected = false;
         reject(new Error(`WebSocket connection error: ${error}`));
       });
@@ -119,7 +119,7 @@ export class LertyWebSocket {
           this.subscriptions.set(topic, { topic, channel, callback });
           resolve();
         })
-        .receive('error', (error) => {
+        .receive('error', (error: any) => {
           reject(new Error(`Failed to subscribe to topic ${topic}: ${error}`));
         });
     });
@@ -144,7 +144,7 @@ export class LertyWebSocket {
     return new Promise((resolve, reject) => {
       subscription.channel.push('message', message)
         .receive('ok', () => resolve())
-        .receive('error', (error) => reject(new Error(`Failed to send message: ${error}`)));
+        .receive('error', (error: any) => reject(new Error(`Failed to send message: ${error}`)));
     });
   }
 
