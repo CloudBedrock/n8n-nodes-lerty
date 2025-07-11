@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:docs.n8n.io)"
+    ],
+    "deny": []
+  }
+}

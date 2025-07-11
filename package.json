@@ -1,0 +1,21 @@
+{
+  "name": "n8n-nodes-lerty",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
+  "dependencies": {
+    "phoenix": "^1.7.21"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.12",
+    "n8n-workflow": "^1.82.0",
+    "typescript": "^5.8.3"
+  }
+}
