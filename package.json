@@ -1,21 +1,53 @@
 {
   "name": "n8n-nodes-lerty",
-  "version": "1.0.0",
+  "version": "0.1.0",
+  "description": "n8n community node for Lerty AI platform integration",
+  "keywords": ["n8n-community-node-package"],
+  "license": "MIT",
+  "author": {
+    "name": "Your Name",
+    "email": "your.email@example.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/n8n-nodes-lerty.git"
+  },
+  "engines": {
+    "node": ">=20.15"
+  },
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "npx rimraf dist && tsc && gulp build:icons",
+    "dev": "tsc --watch",
+    "format": "prettier nodes credentials --write",
+    "lint": "eslint nodes credentials package.json",
+    "lintfix": "eslint nodes credentials package.json --fix",
+    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes credentials package.json",
+    "test": "npm run build && n8n-node-dev test"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "description": "",
+  "files": ["dist"],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/LertyApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/Lerty/Lerty.node.js",
+      "dist/nodes/LertyTrigger/LertyTrigger.node.js"
+    ]
+  },
   "dependencies": {
     "phoenix": "^1.7.21"
   },
   "devDependencies": {
     "@types/node": "^24.0.12",
     "n8n-workflow": "^1.82.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "@typescript-eslint/parser": "~8.32.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-n8n-nodes-base": "^1.16.3",
+    "gulp": "^5.0.0",
+    "prettier": "^3.5.0",
+    "rimraf": "^6.0.1"
   }
 }
