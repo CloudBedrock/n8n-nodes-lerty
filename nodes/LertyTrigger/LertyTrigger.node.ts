@@ -145,7 +145,7 @@ export class LertyTrigger implements INodeType {
         ],
       },
       {
-        displayName: 'Agents',
+        displayName: 'Agent Names or IDs',
         name: 'agents',
         type: 'multiOptions',
         default: [],
@@ -159,7 +159,7 @@ export class LertyTrigger implements INodeType {
         typeOptions: {
           loadOptionsMethod: 'getAgents',
         },
-        description: 'Select specific agents to listen to',
+        description: 'Select specific agents to listen to. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
       },
       {
         displayName: 'Event Types',
@@ -167,19 +167,9 @@ export class LertyTrigger implements INodeType {
         type: 'multiOptions',
         options: [
           {
-            name: 'User Message',
-            value: 'user_message',
-            description: 'Messages from users',
-          },
-          {
             name: 'Agent Response',
             value: 'agent_response',
             description: 'Responses from agents',
-          },
-          {
-            name: 'Typing Indicator',
-            value: 'typing',
-            description: 'Typing indicators',
           },
           {
             name: 'Agent Status',
@@ -190,6 +180,16 @@ export class LertyTrigger implements INodeType {
             name: 'File Attachment',
             value: 'file_attachment',
             description: 'File attachments',
+          },
+          {
+            name: 'Typing Indicator',
+            value: 'typing',
+            description: 'Typing indicators',
+          },
+          {
+            name: 'User Message',
+            value: 'user_message',
+            description: 'Messages from users',
           },
         ],
         default: ['user_message', 'agent_response'],
@@ -263,14 +263,14 @@ export class LertyTrigger implements INodeType {
             description: 'Maximum number of reconnection attempts',
           },
           {
-            displayName: 'Reconnect Delay (ms)',
+            displayName: 'Reconnect Delay (Ms)',
             name: 'reconnectDelay',
             type: 'number',
             default: 5000,
             description: 'Delay between reconnection attempts in milliseconds',
           },
           {
-            displayName: 'Heartbeat Interval (ms)',
+            displayName: 'Heartbeat Interval (Ms)',
             name: 'heartbeatInterval',
             type: 'number',
             default: 30000,

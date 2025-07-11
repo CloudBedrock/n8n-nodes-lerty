@@ -34,7 +34,6 @@ export class LertyApi implements ICredentialType {
       name: 'wsUrl',
       type: 'string',
       default: 'wss://api.lerty.ai/socket',
-      required: false,
       description: 'WebSocket URL for real-time connections (optional)',
     },
   ];

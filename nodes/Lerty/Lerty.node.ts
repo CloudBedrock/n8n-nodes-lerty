@@ -52,7 +52,7 @@ export class Lerty implements INodeType {
             name: 'Send Message',
             value: 'sendMessage',
             description: 'Send a message to a Lerty agent',
-            action: 'Send a message to a Lerty agent',
+            action: 'Send a message to a lerty agent',
           },
           {
             name: 'Get Agent',
