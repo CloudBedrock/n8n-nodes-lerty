@@ -15,9 +15,10 @@ The nodes support both WebSocket (Phoenix channels) and HTTP webhook communicati
 
 ### Core Components
 - **Custom N8N Nodes**: Two nodes (Lerty and LertyTrigger) that integrate with the Lerty platform
-- **Phoenix WebSocket Integration**: Uses Phoenix channels for real-time communication
+- **Phoenix WebSocket Integration**: Uses Phoenix channels for real-time communication with topic-based triggering
 - **HTTP Webhook Fallback**: Supports traditional webhook-based communication
 - **File Attachment Support**: Handles file uploads/downloads via S3 presigned URLs
+- **Topic-Based Triggering**: Similar to Redis n8n node, supports triggering on specific WebSocket topics/channels
 
 ### Key Dependencies
 - `phoenix`: ^1.7.21 - Phoenix channels for WebSocket communication
@@ -140,6 +141,9 @@ n8n-nodes-lerty/
 - Support connection type selection (websocket/webhook/auto)
 - Include file upload configuration options
 - Implement proper validation and error messages
+- **Topic-Based Triggering**: Support triggering on specific Phoenix channel topics (similar to Redis n8n node)
+- **Channel Pattern Matching**: Allow wildcard and pattern-based topic subscription
+- **Multi-Topic Support**: Enable listening to multiple channels simultaneously
 
 ### Development Workflow
 1. Create node structure following n8n community package guidelines
@@ -230,6 +234,60 @@ The nodes integrate with Lerty platform APIs:
 - WebSocket topics: `agent_chat:tenant_{id}_org_{id}_agent_{id}`
 - File uploads: `POST /api/v1/agents/{id}/files`
 - Webhook endpoints: `POST /webhooks/agents/{id}/message`
+
+### Topic-Based Triggering (Similar to Redis n8n Node)
+
+The Lerty Trigger node supports subscribing to specific Phoenix channel topics:
+
+#### Topic Patterns
+- **Agent-specific**: `agent_chat:tenant_{tenant_id}_org_{org_id}_agent_{agent_id}`
+- **Organization-wide**: `agent_chat:tenant_{tenant_id}_org_{org_id}_agent_*`
+- **Tenant-wide**: `agent_chat:tenant_{tenant_id}_org_*_agent_*`
+- **Global patterns**: `agent_chat:*` (all agent conversations)
+- **Custom topics**: `notifications:*`, `system:*`, `alerts:*`
+
+#### Configuration Options
+```typescript
+interface LertyTriggerConfig {
+  // Topic subscription configuration
+  topicPattern: string; // e.g., "agent_chat:tenant_123_org_456_agent_*"
+  subscriptionMode: 'single' | 'pattern' | 'multiple';
+  topics?: string[]; // For multiple topic subscription
+  
+  // Message filtering
+  eventTypes?: string[]; // ['user_message', 'agent_response', 'typing', 'status']
+  messageFilters?: {
+    userId?: string;
+    conversationId?: string;
+    messageType?: string;
+  };
+  
+  // Connection management
+  reconnectOnError: boolean;
+  maxReconnectAttempts: number;
+  reconnectDelay: number;
+}
+```
+
+#### Example Topic Subscriptions
+```typescript
+// Listen to specific agent
+topicPattern: "agent_chat:tenant_123_org_456_agent_789"
+
+// Listen to all agents in organization
+topicPattern: "agent_chat:tenant_123_org_456_agent_*"
+
+// Listen to multiple specific topics
+subscriptionMode: "multiple"
+topics: [
+  "agent_chat:tenant_123_org_456_agent_789",
+  "notifications:tenant_123_org_456",
+  "system:tenant_123"
+]
+
+// Listen to all agent conversations globally
+topicPattern: "agent_chat:*"
+```
 
 ## Message Formats
 

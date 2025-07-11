@@ -4,7 +4,8 @@
       "Bash(find:*)",
       "Bash(ls:*)",
       "Bash(npx tsc:*)",
-      "WebFetch(domain:docs.n8n.io)"
+      "WebFetch(domain:docs.n8n.io)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
