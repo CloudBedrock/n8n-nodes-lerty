@@ -1,35 +1,32 @@
 # n8n-nodes-lerty
 
-A custom n8n community node package for seamless integration with the Lerty AI platform. This package provides two specialized nodes that enable real-time communication between n8n workflows and Lerty agents through both WebSocket and HTTP protocols.
+A custom n8n community node package for seamless integration with the Lerty AI platform. This package provides two specialized nodes that enable communication between n8n workflows and Lerty agents through HTTP webhooks.
 
 ## Features
 
-- **Dual Protocol Support**: WebSocket (Phoenix channels) for real-time communication and HTTP webhooks for reliability
-- **Topic-Based Triggering**: Subscribe to specific Phoenix channel topics with pattern matching (similar to Redis n8n node)
+- **HTTP Webhook Integration**: Reliable message exchange through webhook endpoints
 - **File Attachments**: Full support for file uploads and downloads via S3 presigned URLs
-- **Real-time Features**: Typing indicators, agent status updates, and bidirectional communication
 - **Dynamic Agent Selection**: Automatically populated agent dropdown from Lerty API
-- **Multi-Channel Support**: Listen to multiple channels simultaneously with filtering options
-- **Backward Compatibility**: Maintains compatibility with existing webhook integrations
+- **Message Filtering**: Filter incoming messages by event type
+- **Conversation Context**: Maintains conversation context across message exchanges
+- **Secure Authentication**: Bearer token authentication for API access
 
 ## Nodes Included
 
 ### 1. Lerty Node
 A regular node for sending messages to Lerty agents with support for:
 - Message sending with file attachments
-- Typing indicators
-- Agent status updates
-- Connection management
+- Reply to existing conversations
+- Agent information retrieval
+- File upload capabilities
 
 ### 2. Lerty Trigger Node
 A trigger node for receiving messages from Lerty users with:
-- Real-time message reception
+- HTTP webhook message reception
 - File attachment handling
-- WebSocket and HTTP webhook support
 - Conversation context preservation
-- **Topic-based triggering** with pattern matching
-- **Multi-channel subscription** support
-- **Message filtering** by event type, user, or conversation
+- Message filtering by event type
+- Automatic agent ID inclusion in output
 
 ## Installation
 
@@ -90,49 +87,18 @@ The nodes automatically populate available agents from your Lerty instance. Sele
 [Lerty Trigger] → [Download File] → [Process] → [Lerty Response with File]
 ```
 
-### WebSocket Real-time Chat
+### Multi-Step Processing
 ```
-[Lerty Trigger] → [AI Processing] → [Lerty Node] → [Status Update]
-```
-
-### Topic-Based Triggering Examples
-
-#### Listen to Specific Agent
-```
-Topic Pattern: "agent_chat:tenant_123_org_456_agent_789"
-Trigger: Only messages for a specific agent
-```
-
-#### Listen to All Agents in Organization
-```
-Topic Pattern: "agent_chat:tenant_123_org_456_agent_*"
-Trigger: Messages for any agent in the organization
-```
-
-#### Multi-Channel Subscription
-```
-Subscription Mode: "multiple"
-Topics: [
-  "agent_chat:tenant_123_org_456_agent_789",
-  "notifications:tenant_123_org_456",
-  "system:tenant_123"
-]
-```
-
-#### Global Monitoring
-```
-Topic Pattern: "agent_chat:*"
-Event Types: ["user_message", "agent_response"]
-Trigger: All agent conversations across all tenants
+[Lerty Trigger] → [Data Processing] → [Database] → [Lerty Response]
 ```
 
 ## API Integration
 
 ### Lerty Platform Endpoints
 - `GET /api/v1/agents` - Agent selection
-- `POST /webhooks/agents/{agent_id}/message` - HTTP webhook
+- `POST /webhooks/agents/{agent_id}/message` - HTTP webhook endpoint
 - `POST /api/v1/agents/{agent_id}/files` - File uploads
-- WebSocket: `wss://your-domain.com/socket` - Real-time communication
+- Response webhook URL provided in incoming messages for replies
 
 ### Message Formats
 
@@ -219,7 +185,6 @@ N8N_CUSTOM_EXTENSIONS=n8n-nodes-lerty n8n start
 ```bash
 # For local development
 export LERTY_API_URL=http://localhost:4000
-export LERTY_WS_URL=ws://localhost:4000/socket
 
 # For n8n configuration
 export N8N_CUSTOM_EXTENSIONS=n8n-nodes-lerty
@@ -246,10 +211,10 @@ ENV N8N_CUSTOM_EXTENSIONS=n8n-nodes-lerty
 2. Check that `N8N_CUSTOM_EXTENSIONS` is set correctly
 3. Restart n8n after installation
 
-#### WebSocket Connection Issues
-1. Verify Phoenix server is running
-2. Check WebSocket URL configuration
-3. Ensure proper authentication tokens
+#### Webhook Connection Issues
+1. Verify webhook URL is correctly configured
+2. Check bearer token authentication
+3. Ensure Lerty platform can reach your n8n instance
 
 #### File Upload Problems
 1. Verify S3 configuration in Lerty platform
@@ -291,16 +256,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Version 0.1.0
 - Initial release
-- Basic HTTP webhook support
-- WebSocket integration with Phoenix channels
+- HTTP webhook support for sending and receiving messages
 - File attachment handling
-- Agent selection functionality
+- Dynamic agent selection
+- Reply to conversation functionality
 
 ## Related Projects
 
 - [n8n](https://github.com/n8n-io/n8n) - Workflow automation platform
 - [Lerty AI](https://lerty.ai) - AI agent platform
-- [Phoenix Framework](https://phoenixframework.org) - Real-time web framework
 
 ---
 
