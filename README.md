@@ -52,7 +52,7 @@ npm install n8n-nodes-lerty
 ### Manual Installation
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/n8n-nodes-lerty.git
+git clone https://github.com/CloudBedrock/n8n-nodes-lerty.git
 cd n8n-nodes-lerty
 
 # Install dependencies
@@ -180,7 +180,7 @@ Trigger: All agent conversations across all tenants
 ### Setup
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/n8n-nodes-lerty.git
+git clone https://github.com/CloudBedrock/n8n-nodes-lerty.git
 cd n8n-nodes-lerty
 
 # Install dependencies
@@ -284,7 +284,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 - **Documentation**: [Lerty Platform Docs](https://docs.lerty.ai)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/n8n-nodes-lerty/issues)
+- **Issues**: [GitHub Issues](https://github.com/CloudBedrock/n8n-nodes-lerty/issues)
 - **Community**: [n8n Community](https://community.n8n.io)
 
 ## Changelog
