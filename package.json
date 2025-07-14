@@ -5,12 +5,12 @@
   "keywords": ["n8n-community-node-package"],
   "license": "MIT",
   "author": {
-    "name": "Your Name",
-    "email": "your.email@example.com"
+    "name": "CloudBedrock",
+    "email": "support@cloudbedrock.com"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/n8n-nodes-lerty.git"
+    "url": "https://github.com/CloudBedrock/n8n-nodes-lerty.git"
   },
   "engines": {
     "node": ">=20.15"

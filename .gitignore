@@ -112,3 +112,14 @@ junit.xml
 # Lock files (choose one approach)
 # package-lock.json  # Uncomment if using yarn
 # yarn.lock          # Uncomment if using npm
+
+# Local development files
+.claude/
+CLAUDE.local.md
+deploy-local.sh
+*.backup
+
+# Private configuration
+.env*
+config.local.*
+settings.local.*
