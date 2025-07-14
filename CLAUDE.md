@@ -155,6 +155,90 @@ n8n-nodes-lerty/
 
 ## Testing
 
+### Local Container Deployment (IMPORTANT)
+
+When testing with the n8n container in `~/dev/licensed`, the custom node files must be copied to the mounted directory after each build.
+
+#### Container Setup
+The n8n container uses this volume mount configuration in `docker-compose.override.yml`:
+```yaml
+services:
+  n8n:
+    volumes:
+      - ./custom-nodes:/home/node/.n8n/custom
+```
+
+#### Deployment Steps for Local Container
+
+1. **Build the node**:
+```bash
+cd ~/dev/n8n-nodes-lerty
+npm run build
+```
+
+2. **Copy dist files to the mounted directory** (CRITICAL STEP):
+```bash
+cp -r ~/dev/n8n-nodes-lerty/dist/* ~/dev/licensed/custom-nodes/n8n-nodes-lerty/dist/
+```
+
+3. **Restart the n8n container**:
+```bash
+cd ~/dev/licensed
+docker compose restart n8n
+```
+
+#### Create Deployment Script
+
+Save this as `deploy-local.sh` in the project root:
+```bash
+#!/bin/bash
+# deploy-local.sh - Deploy n8n-nodes-lerty to local container
+
+echo "🔨 Building n8n-nodes-lerty..."
+cd ~/dev/n8n-nodes-lerty && npm run build
+
+if [ $? -ne 0 ]; then
+    echo "❌ Build failed!"
+    exit 1
+fi
+
+echo "📦 Copying files to container mount..."
+cp -r ~/dev/n8n-nodes-lerty/dist/* ~/dev/licensed/custom-nodes/n8n-nodes-lerty/dist/
+
+echo "🔄 Restarting n8n container..."
+cd ~/dev/licensed && docker compose restart n8n
+
+echo "✅ Deployment complete!"
+echo "📋 Check logs with: cd ~/dev/licensed && docker compose logs -f n8n"
+```
+
+Make it executable:
+```bash
+chmod +x deploy-local.sh
+```
+
+#### Common Issues and Solutions
+
+1. **Changes not appearing after rebuild**:
+   - You likely forgot to copy files to the mounted directory
+   - Run: `cp -r ~/dev/n8n-nodes-lerty/dist/* ~/dev/licensed/custom-nodes/n8n-nodes-lerty/dist/`
+
+2. **Verify files were copied**:
+   ```bash
+   ls -la ~/dev/licensed/custom-nodes/n8n-nodes-lerty/dist/nodes/Lerty/
+   # Check the timestamp to ensure files are recent
+   ```
+
+3. **Check container is using updated files**:
+   ```bash
+   cd ~/dev/licensed
+   docker compose exec n8n ls -la /home/node/.n8n/custom/n8n-nodes-lerty/dist/nodes/Lerty/
+   ```
+
+4. **Debug logs not appearing**:
+   - Ensure you copied the files AND restarted the container
+   - Check logs: `docker compose logs n8n --tail=100`
+
 ### Local Testing with Phoenix App
 
 #### Prerequisites
@@ -162,7 +246,7 @@ n8n-nodes-lerty/
 2. **n8n Installation**: Install n8n locally for testing
 3. **Node Development**: Build and link the node package
 
-#### Testing Steps
+#### Testing Steps (Alternative Method)
 ```bash
 # 1. Build the node package
 npm run build

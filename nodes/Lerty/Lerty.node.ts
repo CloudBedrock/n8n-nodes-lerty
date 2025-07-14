@@ -437,10 +437,15 @@ async function replyToConversation(executeFunctions: IExecuteFunctions, lertyHtt
     const conversationId = executeFunctions.getNodeParameter('conversationId', itemIndex) as string;
     const message = executeFunctions.getNodeParameter('message', itemIndex) as string;
     
+    // Get the response webhook URL from the input data
+    const inputData = executeFunctions.getInputData()[itemIndex];
+    const responseWebhook = inputData.json.response_webhook as string;
+    
     // Log the raw values to debug expression evaluation
     console.log('Debug - agentId:', agentId);
     console.log('Debug - conversationId:', conversationId);
     console.log('Debug - message:', message);
+    console.log('Debug - responseWebhook:', responseWebhook);
     
     // Check if expressions were not evaluated (contain literal expression syntax)
     if (conversationId.includes('{{') || conversationId.includes('}}')) {
@@ -459,37 +464,50 @@ async function replyToConversation(executeFunctions: IExecuteFunctions, lertyHtt
       );
     }
     
-    if (!agentId) {
-      throw new NodeOperationError(
-        executeFunctions.getNode(),
-        'Agent ID is required for replying to conversation',
-        { itemIndex }
-      );
+    if (!responseWebhook) {
+      console.log('Warning: response_webhook not found in input data:', JSON.stringify(inputData.json, null, 2));
+      
+      // Fallback: try to use the agent webhook endpoint
+      console.log('Falling back to agent webhook endpoint');
+      const fallbackUrl = `${lertyHttp['config'].baseUrl}/webhooks/agents/${agentId}/message`;
+      
+      const fallbackMessageData: Partial<LertyWebhookMessage> = {
+        id: generateUUID(),
+        content: message,
+        conversationId: conversationId,
+        agentId: agentId,
+        type: 'agent_response',
+        timestamp: new Date().toISOString(),
+      };
+      
+      return await lertyHttp.sendMessage(agentId, fallbackMessageData);
     }
     
-    const messageData: Partial<LertyWebhookMessage> = {
-      id: generateUUID(),
+    const messageData: IDataObject = {
+      conversation_id: conversationId,
       content: message,
-      conversationId: conversationId,
-      type: 'agent_response',
+      message_id: generateUUID(),
       timestamp: new Date().toISOString(),
-    };
-
-    // Use the webhook endpoint like sendMessage does
-    const requestOptions: IHttpRequestOptions = {
-      method: 'POST',
-      url: `${lertyHttp['config'].baseUrl}/webhooks/agents/${agentId}/message`,
-      headers: {
-        'Authorization': `Bearer ${lertyHttp['config'].apiToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: messageData,
-      json: true,
+      // Include additional fields that might be needed
+      user_id: inputData.json.user_id || '',
+      organization_id: inputData.json.organization_id || '',
     };
 
     try {
-      console.log('Debug - Request URL:', requestOptions.url);
+      console.log('Debug - Response webhook URL:', responseWebhook);
       console.log('Debug - Request body:', JSON.stringify(messageData, null, 2));
+      
+      // Send to the response webhook URL
+      const requestOptions: IHttpRequestOptions = {
+        method: 'POST',
+        url: responseWebhook,
+        headers: {
+          'Authorization': `Bearer ${lertyHttp['config'].apiToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: messageData,
+        json: true,
+      };
       
       const response = await executeFunctions.helpers.httpRequest(requestOptions);
       return response;
@@ -499,7 +517,7 @@ async function replyToConversation(executeFunctions: IExecuteFunctions, lertyHtt
         console.error('422 Error Details:');
         console.error('Response body:', JSON.stringify(error.response.body, null, 2));
         console.error('Request that failed:', {
-          url: requestOptions.url,
+          agentId: agentId,
           body: messageData,
           conversationId: conversationId
         });

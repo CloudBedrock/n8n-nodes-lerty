@@ -232,6 +232,7 @@ export class LertyTrigger implements INodeType {
     const headers = this.getHeaderData() as IDataObject;
     const eventTypes = this.getNodeParameter('eventTypes', []) as string[];
     const additionalFields = this.getNodeParameter('additionalFields', {}) as IDataObject;
+    const agentId = this.getNodeParameter('agentId') as string;
 
     // Validate secret token if provided
     if (additionalFields.secretToken) {
@@ -256,12 +257,25 @@ export class LertyTrigger implements INodeType {
       };
     }
 
+    // Enrich the output with agent_id and other useful metadata
+    const outputData = {
+      ...body,
+      agent_id: agentId,
+      // Ensure conversation_id is available (handle different field names)
+      conversation_id: body.conversation_id || body.conversationId || body.thread_id,
+      // Ensure response_webhook is available if it exists
+      response_webhook: body.response_webhook || body.responseWebhook || body.callback_url,
+    };
+    
+    // Log what we're outputting for debugging
+    console.log('LertyTrigger output:', JSON.stringify(outputData, null, 2));
+
     // Return the data to the workflow
     return {
       workflowData: [
         [
           {
-            json: body,
+            json: outputData,
             headers,
           },
         ],
