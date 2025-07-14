@@ -49,6 +49,12 @@ export class Lerty implements INodeType {
         noDataExpression: true,
         options: [
           {
+            name: 'Reply to Conversation',
+            value: 'replyToConversation',
+            description: 'Reply to an existing conversation',
+            action: 'Reply to an existing conversation',
+          },
+          {
             name: 'Send Message',
             value: 'sendMessage',
             description: 'Send a message to a Lerty agent',
@@ -83,7 +89,7 @@ export class Lerty implements INodeType {
         required: true,
         displayOptions: {
           show: {
-            operation: ['sendMessage', 'getAgent', 'uploadFile'],
+            operation: ['sendMessage', 'replyToConversation', 'getAgent', 'uploadFile'],
           },
         },
         modes: [
@@ -115,6 +121,20 @@ export class Lerty implements INodeType {
         ],
       },
       {
+        displayName: 'Conversation ID',
+        name: 'conversationId',
+        type: 'string',
+        required: true,
+        default: '',
+        placeholder: 'conv_123',
+        displayOptions: {
+          show: {
+            operation: ['replyToConversation'],
+          },
+        },
+        description: 'ID of the conversation to reply to',
+      },
+      {
         displayName: 'Message',
         name: 'message',
         type: 'string',
@@ -123,10 +143,10 @@ export class Lerty implements INodeType {
         placeholder: 'Hello, how can you help me?',
         displayOptions: {
           show: {
-            operation: ['sendMessage'],
+            operation: ['sendMessage', 'replyToConversation'],
           },
         },
-        description: 'The message to send to the agent',
+        description: 'The message to send',
       },
       {
         displayName: 'Conversation ID',
@@ -357,6 +377,9 @@ export class Lerty implements INodeType {
         let responseData: any;
 
         switch (operation) {
+          case 'replyToConversation':
+            responseData = await replyToConversation(this, lertyHttp, i);
+            break;
           case 'sendMessage':
             responseData = await sendMessage(this, lertyHttp, i);
             break;
@@ -400,6 +423,103 @@ export class Lerty implements INodeType {
 
 }
 
+// Simple UUID v4 generator
+function generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+async function replyToConversation(executeFunctions: IExecuteFunctions, lertyHttp: LertyHttp, itemIndex: number): Promise<any> {
+    const agentId = executeFunctions.getNodeParameter('agentId', itemIndex, '', { extractValue: true }) as string;
+    const conversationId = executeFunctions.getNodeParameter('conversationId', itemIndex) as string;
+    const message = executeFunctions.getNodeParameter('message', itemIndex) as string;
+    
+    // Log the raw values to debug expression evaluation
+    console.log('Debug - agentId:', agentId);
+    console.log('Debug - conversationId:', conversationId);
+    console.log('Debug - message:', message);
+    
+    // Check if expressions were not evaluated (contain literal expression syntax)
+    if (conversationId.includes('{{') || conversationId.includes('}}')) {
+      throw new NodeOperationError(
+        executeFunctions.getNode(),
+        `Conversation ID contains unevaluated expression: ${conversationId}. Please ensure the expression is properly formatted.`,
+        { itemIndex }
+      );
+    }
+    
+    if (!conversationId || conversationId.trim() === '') {
+      throw new NodeOperationError(
+        executeFunctions.getNode(),
+        'Conversation ID is required but was empty',
+        { itemIndex }
+      );
+    }
+    
+    if (!agentId) {
+      throw new NodeOperationError(
+        executeFunctions.getNode(),
+        'Agent ID is required for replying to conversation',
+        { itemIndex }
+      );
+    }
+    
+    const messageData: Partial<LertyWebhookMessage> = {
+      id: generateUUID(),
+      content: message,
+      conversationId: conversationId,
+      type: 'agent_response',
+      timestamp: new Date().toISOString(),
+    };
+
+    // Use the webhook endpoint like sendMessage does
+    const requestOptions: IHttpRequestOptions = {
+      method: 'POST',
+      url: `${lertyHttp['config'].baseUrl}/webhooks/agents/${agentId}/message`,
+      headers: {
+        'Authorization': `Bearer ${lertyHttp['config'].apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: messageData,
+      json: true,
+    };
+
+    try {
+      console.log('Debug - Request URL:', requestOptions.url);
+      console.log('Debug - Request body:', JSON.stringify(messageData, null, 2));
+      
+      const response = await executeFunctions.helpers.httpRequest(requestOptions);
+      return response;
+    } catch (error: any) {
+      // Enhanced error logging for 422 errors
+      if (error.response?.status === 422) {
+        console.error('422 Error Details:');
+        console.error('Response body:', JSON.stringify(error.response.body, null, 2));
+        console.error('Request that failed:', {
+          url: requestOptions.url,
+          body: messageData,
+          conversationId: conversationId
+        });
+        
+        const errorDetails = error.response.body?.errors || error.response.body?.message || 'Unknown validation error';
+        throw new NodeOperationError(
+          executeFunctions.getNode(),
+          `Validation error (422): ${JSON.stringify(errorDetails)}. ConversationId: "${conversationId}"`,
+          { itemIndex, description: `Full error: ${JSON.stringify(error.response.body)}` }
+        );
+      }
+      
+      throw new NodeOperationError(
+        executeFunctions.getNode(),
+        `Failed to reply to conversation: ${error instanceof Error ? error.message : String(error)}`,
+        { itemIndex }
+      );
+    }
+  }
+
 async function sendMessage(executeFunctions: IExecuteFunctions, lertyHttp: LertyHttp, itemIndex: number): Promise<any> {
     const agentId = executeFunctions.getNodeParameter('agentId', itemIndex, '', { extractValue: true }) as string;
     const message = executeFunctions.getNodeParameter('message', itemIndex) as string;
@@ -409,6 +529,7 @@ async function sendMessage(executeFunctions: IExecuteFunctions, lertyHttp: Lerty
     const additionalFields = executeFunctions.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
 
     const messageData: Partial<LertyWebhookMessage> = {
+      id: generateUUID(),
       content: message,
       conversationId: conversationId || `conv_${Date.now()}`,
       userId: userId || undefined,
