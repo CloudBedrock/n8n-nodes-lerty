@@ -45,7 +45,7 @@ export class LertyTrigger implements INodeType {
     ],
     properties: [
       {
-        displayName: 'Agent',
+        displayName: 'Agent Name or ID',
         name: 'agentId',
         type: 'options',
         required: true,
@@ -53,7 +53,7 @@ export class LertyTrigger implements INodeType {
           loadOptionsMethod: 'getAgents',
         },
         default: '',
-        description: 'The Lerty agent to receive messages from',
+        description: 'The Lerty agent to receive messages from. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
       },
       {
         displayName: 'Event Types',

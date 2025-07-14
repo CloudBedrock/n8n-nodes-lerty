@@ -49,18 +49,6 @@ export class Lerty implements INodeType {
         noDataExpression: true,
         options: [
           {
-            name: 'Reply to Conversation',
-            value: 'replyToConversation',
-            description: 'Reply to an existing conversation',
-            action: 'Reply to an existing conversation',
-          },
-          {
-            name: 'Send Message',
-            value: 'sendMessage',
-            description: 'Send a message to a Lerty agent',
-            action: 'Send a message to a lerty agent',
-          },
-          {
             name: 'Get Agent',
             value: 'getAgent',
             description: 'Get information about a specific agent',
@@ -71,6 +59,18 @@ export class Lerty implements INodeType {
             value: 'listAgents',
             description: 'List all available agents',
             action: 'List all available agents',
+          },
+          {
+            name: 'Reply to Conversation',
+            value: 'replyToConversation',
+            description: 'Reply to an existing conversation',
+            action: 'Reply to an existing conversation',
+          },
+          {
+            name: 'Send Message',
+            value: 'sendMessage',
+            description: 'Send a message to a Lerty agent',
+            action: 'Send a message to a lerty agent',
           },
           {
             name: 'Upload File',

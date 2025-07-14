@@ -7,5 +7,7 @@ module.exports = {
   },
   rules: {
     // Add custom rules here
+    'n8n-nodes-base/node-class-description-inputs-wrong-regular-node': 'off',
+    'n8n-nodes-base/node-class-description-outputs-wrong': 'off',
   },
 };
