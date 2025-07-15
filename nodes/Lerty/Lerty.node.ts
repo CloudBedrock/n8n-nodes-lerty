@@ -7,13 +7,11 @@ import {
   NodeOperationError,
   IHttpRequestOptions,
   ILoadOptionsFunctions,
-  INodePropertyOptions,
   INodeListSearchResult,
   NodeConnectionType,
 } from 'n8n-workflow';
 
 import { LertyHttp, LertyAgent, LertyWebhookMessage } from '../../utils/LertyHttp';
-import { FileUtils } from '../../utils/FileUtils';
 
 export class Lerty implements INodeType {
   description: INodeTypeDescription = {
@@ -73,10 +71,10 @@ export class Lerty implements INodeType {
             action: 'Send a message to a lerty agent',
           },
           {
-            name: 'Upload File',
-            value: 'uploadFile',
-            description: 'Upload a file to an agent',
-            action: 'Upload a file to an agent',
+            name: 'Send Typing Indicator',
+            value: 'sendTypingIndicator',
+            description: 'Send typing indicator to a conversation',
+            action: 'Send typing indicator to a conversation',
           },
         ],
         default: 'sendMessage',
@@ -89,7 +87,7 @@ export class Lerty implements INodeType {
         required: true,
         displayOptions: {
           show: {
-            operation: ['sendMessage', 'replyToConversation', 'getAgent', 'uploadFile'],
+            operation: ['sendMessage', 'replyToConversation', 'getAgent', 'sendTypingIndicator'],
           },
         },
         modes: [
@@ -126,13 +124,40 @@ export class Lerty implements INodeType {
         type: 'string',
         required: true,
         default: '',
-        placeholder: 'conv_123',
+        placeholder: 'conversation_123',
         displayOptions: {
           show: {
             operation: ['replyToConversation'],
           },
         },
         description: 'ID of the conversation to reply to',
+      },
+      {
+        displayName: 'Conversation ID',
+        name: 'conversationId',
+        type: 'string',
+        required: true,
+        default: '',
+        placeholder: 'conversation_123',
+        displayOptions: {
+          show: {
+            operation: ['sendTypingIndicator'],
+          },
+        },
+        description: 'ID of the conversation to send typing indicator to',
+      },
+      {
+        displayName: 'Typing',
+        name: 'typing',
+        type: 'boolean',
+        required: true,
+        default: true,
+        displayOptions: {
+          show: {
+            operation: ['sendTypingIndicator'],
+          },
+        },
+        description: 'Whether to show typing indicator (true) or stop typing (false)',
       },
       {
         displayName: 'Message',
@@ -153,7 +178,7 @@ export class Lerty implements INodeType {
         name: 'conversationId',
         type: 'string',
         default: '',
-        placeholder: 'conv_123',
+        placeholder: 'conversation_123',
         displayOptions: {
           show: {
             operation: ['sendMessage'],
@@ -220,59 +245,6 @@ export class Lerty implements INodeType {
             ],
           },
         ],
-      },
-      {
-        displayName: 'File Source',
-        name: 'fileSource',
-        type: 'options',
-        options: [
-          {
-            name: 'URL',
-            value: 'url',
-            description: 'Upload file from URL',
-          },
-          {
-            name: 'Binary Data',
-            value: 'binary',
-            description: 'Upload file from binary data',
-          },
-        ],
-        default: 'url',
-        displayOptions: {
-          show: {
-            operation: ['uploadFile'],
-          },
-        },
-      },
-      {
-        displayName: 'File URL',
-        name: 'fileUrl',
-        type: 'string',
-        default: '',
-        placeholder: 'https://example.com/file.pdf',
-        required: true,
-        displayOptions: {
-          show: {
-            operation: ['uploadFile'],
-            fileSource: ['url'],
-          },
-        },
-        description: 'URL of the file to upload',
-      },
-      {
-        displayName: 'Binary Property',
-        name: 'binaryProperty',
-        type: 'string',
-        default: 'data',
-        placeholder: 'data',
-        required: true,
-        displayOptions: {
-          show: {
-            operation: ['uploadFile'],
-            fileSource: ['binary'],
-          },
-        },
-        description: 'Name of the binary property containing the file data',
       },
       {
         displayName: 'Additional Fields',
@@ -383,14 +355,14 @@ export class Lerty implements INodeType {
           case 'sendMessage':
             responseData = await sendMessage(this, lertyHttp, i);
             break;
+          case 'sendTypingIndicator':
+            responseData = await sendTypingIndicator(this, lertyHttp, i);
+            break;
           case 'getAgent':
             responseData = await getAgent(this, lertyHttp, i);
             break;
           case 'listAgents':
             responseData = await listAgents(this, lertyHttp, i);
-            break;
-          case 'uploadFile':
-            responseData = await uploadFile(this, lertyHttp, i);
             break;
           default:
             throw new NodeOperationError(
@@ -439,7 +411,26 @@ async function replyToConversation(executeFunctions: IExecuteFunctions, lertyHtt
     
     // Get the response webhook URL from the input data
     const inputData = executeFunctions.getInputData()[itemIndex];
-    const responseWebhook = inputData.json.response_webhook as string;
+    let responseWebhook = inputData.json.response_webhook as string;
+    
+    // If not found directly, check if it's in the original trigger data (passed through by typing indicator)
+    if (!responseWebhook && inputData.json._originalTriggerData) {
+      const originalTriggerData = inputData.json._originalTriggerData as IDataObject;
+      responseWebhook = originalTriggerData.response_webhook as string;
+    }
+    
+    // If still not found, try to find it in the workflow execution data from the LertyTrigger node
+    if (!responseWebhook) {
+      try {
+        const workflowData = executeFunctions.getWorkflowDataProxy(itemIndex);
+        const lertyTriggerData = workflowData.$('Lerty Trigger');
+        if (lertyTriggerData && lertyTriggerData.item && lertyTriggerData.item.json) {
+          responseWebhook = lertyTriggerData.item.json.response_webhook as string;
+        }
+      } catch (error) {
+        // Ignore errors if Lerty Trigger node is not found
+      }
+    }
     
     // Log the raw values to debug expression evaluation
     console.log('Debug - agentId:', agentId);
@@ -469,7 +460,6 @@ async function replyToConversation(executeFunctions: IExecuteFunctions, lertyHtt
       
       // Fallback: try to use the agent webhook endpoint
       console.log('Falling back to agent webhook endpoint');
-      const fallbackUrl = `${lertyHttp['config'].baseUrl}/webhooks/agents/${agentId}/message`;
       
       const fallbackMessageData: Partial<LertyWebhookMessage> = {
         id: generateUUID(),
@@ -549,7 +539,7 @@ async function sendMessage(executeFunctions: IExecuteFunctions, lertyHttp: Lerty
     const messageData: Partial<LertyWebhookMessage> = {
       id: generateUUID(),
       content: message,
-      conversationId: conversationId || `conv_${Date.now()}`,
+      conversationId: conversationId || `conversation_${Date.now()}`,
       userId: userId || undefined,
       type: 'user_message',
       timestamp: new Date().toISOString(),
@@ -560,8 +550,8 @@ async function sendMessage(executeFunctions: IExecuteFunctions, lertyHttp: Lerty
       const file = fileAttachment.file as IDataObject;
       if (file.url) {
         messageData.fileUrl = file.url as string;
-        messageData.fileName = file.name as string || FileUtils.extractFileInfo(file.url as string).name;
-        messageData.fileType = file.type as string || FileUtils.extractFileInfo(file.url as string).type;
+        messageData.fileName = file.name as string || 'file';
+        messageData.fileType = file.type as string || 'application/octet-stream';
       }
     }
 
@@ -590,45 +580,39 @@ async function listAgents(executeFunctions: IExecuteFunctions, lertyHttp: LertyH
     return { agents, count: agents.length };
   }
 
-async function uploadFile(executeFunctions: IExecuteFunctions, lertyHttp: LertyHttp, itemIndex: number): Promise<any> {
+
+async function sendTypingIndicator(executeFunctions: IExecuteFunctions, lertyHttp: LertyHttp, itemIndex: number): Promise<any> {
     const agentId = executeFunctions.getNodeParameter('agentId', itemIndex, '', { extractValue: true }) as string;
-    const fileSource = executeFunctions.getNodeParameter('fileSource', itemIndex) as string;
-
-    let fileBuffer: Buffer;
-    let fileName: string;
-    let fileType: string;
-
-    if (fileSource === 'url') {
-      const fileUrl = executeFunctions.getNodeParameter('fileUrl', itemIndex) as string;
-      const fileInfo = FileUtils.extractFileInfo(fileUrl);
-      fileName = fileInfo.name;
-      fileType = fileInfo.type;
-      fileBuffer = await FileUtils.downloadFileFromUrl(fileUrl);
-    } else {
-      const binaryPropertyName = executeFunctions.getNodeParameter('binaryProperty', itemIndex) as string;
-      const binaryData = executeFunctions.helpers.assertBinaryData(itemIndex, binaryPropertyName);
+    const conversationId = executeFunctions.getNodeParameter('conversationId', itemIndex) as string;
+    const typing = executeFunctions.getNodeParameter('typing', itemIndex) as boolean;
+    
+    // Check if we have a response_webhook in the input data to extract the correct base URL
+    const inputData = executeFunctions.getInputData()[itemIndex];
+    const responseWebhook = inputData.json.response_webhook as string;
+    
+    let typingResult;
+    
+    if (responseWebhook) {
+      // Extract base URL from response webhook
+      const webhookUrl = new URL(responseWebhook);
+      const baseUrl = `${webhookUrl.protocol}//${webhookUrl.host}`;
       
-      fileBuffer = await executeFunctions.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
-      fileName = binaryData.fileName || 'file';
-      fileType = binaryData.mimeType || 'application/octet-stream';
+      // Create a temporary HTTP client with the correct base URL
+      const dynamicLertyHttp = new LertyHttp({
+        baseUrl: baseUrl,
+        apiToken: lertyHttp['config'].apiToken,
+      });
+      
+      typingResult = await dynamicLertyHttp.sendTypingIndicator(agentId, conversationId, typing);
+    } else {
+      // Fallback to the configured base URL
+      typingResult = await lertyHttp.sendTypingIndicator(agentId, conversationId, typing);
     }
-
-    // Validate file
-    if (!FileUtils.validateFileType(fileType)) {
-      throw new NodeOperationError(
-        executeFunctions.getNode(),
-        `Unsupported file type: ${fileType}`,
-        { itemIndex }
-      );
-    }
-
-    if (!FileUtils.validateFileSize(fileBuffer.length)) {
-      throw new NodeOperationError(
-        executeFunctions.getNode(),
-        `File size too large: ${FileUtils.formatFileSize(fileBuffer.length)}`,
-        { itemIndex }
-      );
-    }
-
-    return await lertyHttp.uploadFile(agentId, fileBuffer, fileName, fileType);
+    
+    // Preserve the original trigger data for subsequent nodes
+    return {
+      ...typingResult,
+      // Pass through the original trigger data so replyToConversation can access it
+      _originalTriggerData: inputData.json
+    };
   }
