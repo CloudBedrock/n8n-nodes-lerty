@@ -567,5 +567,24 @@ async function sendTypingIndicator(executeFunctions: IExecuteFunctions, lertyHtt
     const conversationId = executeFunctions.getNodeParameter('conversationId', itemIndex) as string;
     const typing = executeFunctions.getNodeParameter('typing', itemIndex) as boolean;
     
+    // Check if we have a response_webhook in the input data to extract the correct base URL
+    const inputData = executeFunctions.getInputData()[itemIndex];
+    const responseWebhook = inputData.json.response_webhook as string;
+    
+    if (responseWebhook) {
+      // Extract base URL from response webhook
+      const webhookUrl = new URL(responseWebhook);
+      const baseUrl = `${webhookUrl.protocol}//${webhookUrl.host}`;
+      
+      // Create a temporary HTTP client with the correct base URL
+      const dynamicLertyHttp = new LertyHttp({
+        baseUrl: baseUrl,
+        apiToken: lertyHttp['config'].apiToken,
+      });
+      
+      return await dynamicLertyHttp.sendTypingIndicator(agentId, conversationId, typing);
+    }
+    
+    // Fallback to the configured base URL
     return await lertyHttp.sendTypingIndicator(agentId, conversationId, typing);
   }
