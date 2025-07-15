@@ -117,6 +117,8 @@ junit.xml
 .claude/
 CLAUDE.local.md
 deploy-local.sh
+dev-deploy.sh
+docker-compose.local.yml
 *.backup
 
 # Private configuration
