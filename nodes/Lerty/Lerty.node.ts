@@ -473,14 +473,32 @@ async function replyToConversation(executeFunctions: IExecuteFunctions, lertyHtt
       return await lertyHttp.sendMessage(agentId, fallbackMessageData);
     }
     
+    // Try to get user_id and organization_id from trigger data
+    let userId = inputData.json.user_id as string || '';
+    let organizationId = inputData.json.organization_id as string || '';
+    
+    // If not found, try to get from workflow data
+    if ((!userId || !organizationId) && responseWebhook) {
+      try {
+        const workflowData = executeFunctions.getWorkflowDataProxy(itemIndex);
+        const lertyTriggerData = workflowData.$('Lerty Trigger');
+        if (lertyTriggerData && lertyTriggerData.item && lertyTriggerData.item.json) {
+          userId = userId || (lertyTriggerData.item.json.user_id as string) || '';
+          organizationId = organizationId || (lertyTriggerData.item.json.organization_id as string) || '';
+        }
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+    
     const messageData: IDataObject = {
       conversation_id: conversationId,
       content: message,
       message_id: generateUUID(),
       timestamp: new Date().toISOString(),
       // Include additional fields that might be needed
-      user_id: inputData.json.user_id || '',
-      organization_id: inputData.json.organization_id || '',
+      user_id: userId,
+      organization_id: organizationId,
     };
 
     try {
@@ -488,15 +506,21 @@ async function replyToConversation(executeFunctions: IExecuteFunctions, lertyHtt
       console.log('Debug - Request body:', JSON.stringify(messageData, null, 2));
       
       // Send to the response webhook URL
+      // Note: The standard workflow uses form parameters, not JSON
+      const formData = new URLSearchParams();
+      Object.keys(messageData).forEach(key => {
+        formData.append(key, String(messageData[key]));
+      });
+      
       const requestOptions: IHttpRequestOptions = {
         method: 'POST',
         url: responseWebhook,
         headers: {
           'Authorization': `Bearer ${lertyHttp['config'].apiToken}`,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: messageData,
-        json: true,
+        body: formData.toString(),
+        json: false,
       };
       
       const response = await executeFunctions.helpers.httpRequest(requestOptions);
