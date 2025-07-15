@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-lerty",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "n8n community node for Lerty AI platform integration",
   "keywords": [
     "n8n-community-node-package"
