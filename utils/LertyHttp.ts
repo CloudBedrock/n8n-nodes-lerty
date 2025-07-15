@@ -30,14 +30,6 @@ export interface LertyWebhookMessage {
   fileType?: string;
 }
 
-export interface LertyFileUploadResponse {
-  fileId: string;
-  fileUrl: string;
-  fileName: string;
-  fileType: string;
-  fileSize: number;
-  uploadedAt: string;
-}
 
 export class LertyHttp {
   private config: LertyHttpConfig;
@@ -119,31 +111,6 @@ export class LertyHttp {
     }
   }
 
-  async uploadFile(agentId: string, file: Buffer, fileName: string, fileType: string): Promise<LertyFileUploadResponse> {
-    try {
-      const formData = new FormData();
-      formData.append('file', new Blob([file], { type: fileType }), fileName);
-      formData.append('agent_id', agentId);
-
-      const response = await fetch(`${this.config.baseUrl}/api/v1/agents/${agentId}/files`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.config.apiToken}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      const result = await response.json();
-      return result as LertyFileUploadResponse;
-    } catch (error) {
-      throw new Error(`Failed to upload file: ${error}`);
-    }
-  }
 
   async downloadFile(fileUrl: string): Promise<Buffer> {
     try {
@@ -177,6 +144,25 @@ export class LertyHttp {
       return true;
     } catch (error) {
       return false;
+    }
+  }
+
+  async sendTypingIndicator(agentId: string, conversationId: string, typing: boolean): Promise<any> {
+    try {
+      const response = await this.makeRequest<any>(
+        'POST',
+        `/api/agents/${agentId}/callback`,
+        {
+          data: {
+            typing: typing,
+          },
+          conversation_id: conversationId,
+          callback_type: 'typing',
+        }
+      );
+      return response;
+    } catch (error) {
+      throw new Error(`Failed to send typing indicator for agent ${agentId}: ${error}`);
     }
   }
 }
