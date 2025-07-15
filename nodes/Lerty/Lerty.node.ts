@@ -411,7 +411,26 @@ async function replyToConversation(executeFunctions: IExecuteFunctions, lertyHtt
     
     // Get the response webhook URL from the input data
     const inputData = executeFunctions.getInputData()[itemIndex];
-    const responseWebhook = inputData.json.response_webhook as string;
+    let responseWebhook = inputData.json.response_webhook as string;
+    
+    // If not found directly, check if it's in the original trigger data (passed through by typing indicator)
+    if (!responseWebhook && inputData.json._originalTriggerData) {
+      const originalTriggerData = inputData.json._originalTriggerData as IDataObject;
+      responseWebhook = originalTriggerData.response_webhook as string;
+    }
+    
+    // If still not found, try to find it in the workflow execution data from the LertyTrigger node
+    if (!responseWebhook) {
+      try {
+        const workflowData = executeFunctions.getWorkflowDataProxy(itemIndex);
+        const lertyTriggerData = workflowData.$('Lerty Trigger');
+        if (lertyTriggerData && lertyTriggerData.item && lertyTriggerData.item.json) {
+          responseWebhook = lertyTriggerData.item.json.response_webhook as string;
+        }
+      } catch (error) {
+        // Ignore errors if Lerty Trigger node is not found
+      }
+    }
     
     // Log the raw values to debug expression evaluation
     console.log('Debug - agentId:', agentId);
@@ -571,6 +590,8 @@ async function sendTypingIndicator(executeFunctions: IExecuteFunctions, lertyHtt
     const inputData = executeFunctions.getInputData()[itemIndex];
     const responseWebhook = inputData.json.response_webhook as string;
     
+    let typingResult;
+    
     if (responseWebhook) {
       // Extract base URL from response webhook
       const webhookUrl = new URL(responseWebhook);
@@ -582,9 +603,16 @@ async function sendTypingIndicator(executeFunctions: IExecuteFunctions, lertyHtt
         apiToken: lertyHttp['config'].apiToken,
       });
       
-      return await dynamicLertyHttp.sendTypingIndicator(agentId, conversationId, typing);
+      typingResult = await dynamicLertyHttp.sendTypingIndicator(agentId, conversationId, typing);
+    } else {
+      // Fallback to the configured base URL
+      typingResult = await lertyHttp.sendTypingIndicator(agentId, conversationId, typing);
     }
     
-    // Fallback to the configured base URL
-    return await lertyHttp.sendTypingIndicator(agentId, conversationId, typing);
+    // Preserve the original trigger data for subsequent nodes
+    return {
+      ...typingResult,
+      // Pass through the original trigger data so replyToConversation can access it
+      _originalTriggerData: inputData.json
+    };
   }
